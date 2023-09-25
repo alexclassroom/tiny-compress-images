@@ -226,7 +226,8 @@ function reset_webservice() {
 
 // $global_webdriver_host = 'http://127.0.0.1:4444/wd/hub';
 // $global_driver = RemoteWebDriver::create($global_webdriver_host, DesiredCapabilities::firefox());
-$global_webdriver_host = 'http://127.0.0.1:8910';
+// $global_webdriver_host = 'http://127.0.0.1:8910';
+$global_webdriver_host = 'http://phantomjs:8910';
 $global_driver = RemoteWebDriver::create(
 	$global_webdriver_host,
 	DesiredCapabilities::phantomjs(),

@@ -1,48 +1,51 @@
-version: '2'
-
 services:
   wordpress:
     build:
-      context: config
-      dockerfile: Dockerfile-wordpress-${WORDPRESS_VERSION}
+      dockerfile: ./config/Dockerfile-wordpress-${WORDPRESS_VERSION}
     ports:
-    - 80${WORDPRESS_VERSION}:80
+      - 80${WORDPRESS_VERSION}:80
     volumes:
-    - .:/var/www/html/wp-content/plugins/tiny-compress-images
-    links:
-    - mysql
-    - phantomjs
-    - webservice
+      - .:/var/www/html/wp-content/plugins/tiny-compress-images
     environment:
       WORDPRESS_DB_NAME: wordpress_${WORDPRESS_VERSION}
       WORDPRESS_DB_USER: root
       WORDPRESS_DB_PASSWORD: root
-      WORDPRESS_HOST: http://localhost
+      # WORDPRESS_HOST: http://localhost
+      WORDPRESS_HOST: http://wordpress
 
   mysql:
     image: mysql:5.7
     ports:
-    - 3306:3306
+      - 3306:3306
     volumes:
-    - ./config/mysql:/etc/mysql/conf.d
+      - ./config/mysql:/etc/mysql/conf.d
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: wordpress_${WORDPRESS_VERSION}
 
   phantomjs:
     ports:
-    - 8910:8910
+      - 8910:8910
     volumes:
-    - ./test/fixtures:/test/fixtures
+      - ./test/fixtures:/test/fixtures
     build:
-      context: config
-      dockerfile: Dockerfile-phantomjs
+      dockerfile: ./config/Dockerfile-phantomjs
 
   webservice:
     ports:
-    - 80:80
+      - 80:80
     volumes:
-    - ./test/mock-tinypng-webservice:/var/www/html
+      - ./test/mock-tinypng-webservice:/var/www/html
     build:
-      context: config
-      dockerfile: Dockerfile-mock-webservice
+      dockerfile: ./config/Dockerfile-mock-webservice
+
+  integration-tester:
+    build:
+      dockerfile: ./config/Dockerfile-integration-tester
+    volumes:
+      - .:/var/www
+    environment:
+      - "COMPOSER_ALLOW_SUPERUSER=1"
+
+    # Put all exports here 
+    # Read documentation https://docs.docker.com/compose/compose-file/05-services/
