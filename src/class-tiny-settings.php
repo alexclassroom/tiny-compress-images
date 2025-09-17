@@ -50,6 +50,13 @@ class Tiny_Settings extends Tiny_WP_Base {
 		}
 	}
 
+	public function cli_init() {
+		try {
+			$this->init_compressor();
+		} catch ( Tiny_Exception $e ) {
+		}
+	}
+
 	public function ajax_init() {
 		try {
 			$this->init_compressor();
@@ -149,7 +156,8 @@ class Tiny_Settings extends Tiny_WP_Base {
 			$this->render_size_checkboxes_description(
 				$_GET['image_sizes_selected'],
 				isset( $_GET['resize_original'] ),
-				isset( $_GET['compress_wr2x'] )
+				isset( $_GET['compress_wr2x'] ),
+				self::get_conversion_enabled()
 			);
 		}
 		exit();
