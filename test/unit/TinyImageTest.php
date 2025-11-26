@@ -44,6 +44,52 @@ class Tiny_Image_Test extends Tiny_TestCase {
 		$this->assertEquals( 100, $tiny_image_metadata['height'] );
 		$this->assertEquals( 100, $tiny_image_metadata['filesize'] );
 	}
+	
+	public function test_parse_wp_metadata_should_ignore_invalid_sizes() {
+		$invalid_metadata = array(
+			'width' => 1256,
+			'height' => 1256,
+			'file' => '2015/09/tinypng_gravatar.png',
+			'sizes' => array(
+				'valid' => array(
+					'file' => 'tinypng_gravatar-200x200.png',
+					'width' => 200,
+					'height' => 200,
+					'mime-type' => 'image/png',
+				),
+				'missing-file' => array(
+					'width' => 50,
+					'height' => 50,
+					'mime-type' => 'image/png',
+				),
+				'scalar-size' => 'tinypng_gravatar-300x300.png',
+				'null-size' => null,
+				'valid-second' => array(
+					'file' => 'tinypng_gravatar-400x400.png',
+					'mime-type' => 'image/png',
+				),
+			),
+			'image_meta' => array(),
+		);
+
+		$tiny_image = new Tiny_Image( $this->settings, 999, $invalid_metadata );
+
+		$this->assertEquals(
+			array(
+				'valid' => array(
+					'file' => 'tinypng_gravatar-200x200.png',
+					'width' => 200,
+					'height' => 200,
+					'mime-type' => 'image/png',
+				),
+				'valid-second' => array(
+					'file' => 'tinypng_gravatar-400x400.png',
+					'mime-type' => 'image/png',
+				),
+			),
+			$tiny_image->get_wp_metadata()['sizes']
+		);
+	}
 
 	public function test_get_images_should_return_all_images() {
 		$this->assertEquals( array(
@@ -176,7 +222,7 @@ class Tiny_Image_Test extends Tiny_TestCase {
 	 * In case a customer has already compressed a couple of images and then turns
 	 * on the conversion feature.
 	 */
-public function test_compressed_images_can_be_converted() {
+	public function test_compressed_images_can_be_converted() {
 		// Enable conversion and all image sizes
 		$this->wp->addOption('tinypng_conversion_enabled', true);
 		$this->wp->addOption('tinypng_convert_to', 'smallest');
@@ -193,5 +239,71 @@ public function test_compressed_images_can_be_converted() {
 		$this->assertCount(1, $uncompressed_sizes, 'should be 1 size compressed');
 		$this->assertCount(4, $unconverted_sizes, 'All 4 sizes should be converted');
 		$this->assertCount(4, $unprocessed_sizes, 'All sizes should be processed');
+	}
+
+	/**
+	 * Test conversion to see if follow-up conversion will be done with the same mimetype
+	 */
+	public function test_conversion_same_mimetype()
+	{
+		$this->wp->addOption('tinypng_convert_format', array(
+			'convert' => 'on',
+			'convert_to' => 'smallest',
+		));
+		$this->wp->addOption('tinypng_sizes', array(
+			Tiny_Image::ORIGINAL => 'on',
+			'thumbnail' => 'on',
+		));
+		$this->wp->createImages(array(
+			'thumbnail' => 1000,
+		));
+		$this->wp->stub('get_post_mime_type', function () {
+			return 'image/png';
+		});
+
+		$metadata = $this->wp->getTestMetadata();
+		$settings = new Tiny_Settings();
+
+		// create a mock compressor to spy on calls
+		$mock_compressor = $this->createMock(Tiny_Compress::class);
+
+		// we expect for all sizes a webp
+		$converted_type = 'image/webp';
+		$responses = array(
+			array(
+				'input' => array('size' => 1000),
+				'output' => array('size' => 800, 'type' => 'image/png'),
+				'convert' => array('type' => $converted_type, 'size' => 750, 'path' => 'vfs://root/converted-1.webp'),
+			),
+			array(
+				'input' => array('size' => 1000),
+				'output' => array('size' => 780, 'type' => 'image/png'),
+				'convert' => array('type' => $converted_type, 'size' => 720, 'path' => 'vfs://root/converted-2.webp'),
+			),
+		);
+
+		$compress_calls = array();
+		$mock_compressor->expects($this->exactly(2))
+			->method('compress_file')
+			->willReturnCallback(function ($file, $resize, $preserve, $convert_to) use (&$compress_calls, &$responses) {
+				$compress_calls[] = array(
+					'file' => $file,
+					'convert_to' => $convert_to,
+				);
+				return array_shift($responses);
+			});
+		$settings->set_compressor($mock_compressor);
+
+		$tinyimg = new Tiny_Image($settings, 999, $metadata);
+		$tinyimg->compress();
+
+		// should have been 2 calls to our mock 'compress_file'
+		$this->assertCount(2, $compress_calls);
+
+		// first call would have been width all mimetypes
+		$this->assertEquals(array('image/avif', 'image/webp'), $compress_calls[0]['convert_to']);
+
+		// second call should be only with image/webp because first call was a image/webp
+		$this->assertEquals(array('image/webp'), $compress_calls[1]['convert_to']);
 	}
 }
