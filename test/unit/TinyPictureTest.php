@@ -12,7 +12,8 @@ class Tiny_Picture_Test extends Tiny_TestCase
     {
         parent::set_up();
 
-        $this->tiny_picture = new Tiny_Picture($this->vfs->url(), array('https://www.tinifytest.com'));
+        $settings = new Tiny_Settings();
+        $this->tiny_picture = new Tiny_Picture($settings, $this->vfs->url(), array('https://www.tinifytest.com'));
     }
 
     /**
@@ -335,7 +336,8 @@ class Tiny_Picture_Test extends Tiny_TestCase
             return false;
         });
         
-        $tiny_picture = new Tiny_Picture($this->vfs->url(), array('https://www.tinifytest.com'));
+        $settings = new Tiny_Settings();
+        $tiny_picture = new Tiny_Picture($settings, $this->vfs->url(), array('https://www.tinifytest.com'));
 
         $template_redirect_registered = false;
         foreach ($this->wp->getCalls('add_action') as $call) {
@@ -351,5 +353,29 @@ class Tiny_Picture_Test extends Tiny_TestCase
         );
         
         $_GET = array();
+    }
+
+    /**
+     * images that have no src or srcset will be unchanged
+     */
+    public function test_image_without_src() {
+        $input = '<img alt="no source">';
+        $expected = '<img alt="no source">';
+        $output = $this->tiny_picture->replace_sources($input);
+
+        $this->assertSame($expected, $output);
+    }
+
+    /**
+     * Images with only a srcset are valid and will be wrapped
+     */
+    public function test_image_with_only_srcset() {
+        $this->wp->createImage(37857, '2025/09', 'test_250x250.webp');
+
+        $input = '<img srcset="/wp-content/uploads/2025/09/test_250x250.png 350w" alt="no source but has srcset">';
+        $expected = '<picture><source srcset="/wp-content/uploads/2025/09/test_250x250.webp 350w" type="image/webp" /><img srcset="/wp-content/uploads/2025/09/test_250x250.png 350w" alt="no source but has srcset"></picture>';
+        $output = $this->tiny_picture->replace_sources($input);
+
+        $this->assertSame($expected, $output);
     }
 }
