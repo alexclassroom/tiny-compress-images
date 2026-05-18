@@ -18,7 +18,7 @@
 * Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 class Tiny_Plugin extends Tiny_WP_Base {
-	const VERSION         = '3.6.8';
+	const VERSION         = '3.6.14';
 	const MEDIA_COLUMN    = self::NAME;
 	const DATETIME_FORMAT = 'Y-m-d G:i:s';
 
@@ -32,7 +32,8 @@ class Tiny_Plugin extends Tiny_WP_Base {
 	}
 
 	public static function version() {
-		/* Avoid using get_plugin_data() because it is not loaded early enough
+		/*
+		Avoid using get_plugin_data() because it is not loaded early enough
 			in xmlrpc.php. */
 		return self::VERSION;
 	}
@@ -111,7 +112,8 @@ class Tiny_Plugin extends Tiny_WP_Base {
 			$this->get_method( 'mark_image_as_compressed' )
 		);
 
-		/* When touching any functionality linked to image compressions when
+		/*
+		When touching any functionality linked to image compressions when
 			uploading images make sure it also works with XML-RPC. See README. */
 		add_filter(
 			'wp_ajax_nopriv_tiny_rpc',
@@ -697,7 +699,7 @@ class Tiny_Plugin extends Tiny_WP_Base {
 			$location = add_query_arg( 'm', $_REQUEST['m'], $location );
 		}
 
-		wp_redirect( admin_url( $location ) );
+		wp_safe_redirect( admin_url( $location ) );
 		exit();
 	}
 
@@ -788,7 +790,8 @@ class Tiny_Plugin extends Tiny_WP_Base {
 			true
 		);
 
-		/* This might be deduplicated with the admin script localization, but
+		/*
+		This might be deduplicated with the admin script localization, but
 			the order of including scripts is sometimes different. So in that
 			case we need to make sure that the order of inclusion is correc.t */
 		wp_localize_script(
@@ -850,6 +853,7 @@ class Tiny_Plugin extends Tiny_WP_Base {
 	 * Will clean up converted files (if any) when the original is deleted
 	 *
 	 * Hooked to the `delete_attachment` action.
+	 *
 	 * @see https://developer.wordpress.org/reference/hooks/deleted_post/
 	 *
 	 * @param [int] $post_id
@@ -861,6 +865,14 @@ class Tiny_Plugin extends Tiny_WP_Base {
 		$tiny_image->delete_converted_image();
 	}
 
+	/**
+	 * Runs on uninstall
+	 *
+	 * @return void
+	 */
+	public static function uninstall() {
+		Tiny_Apache_Rewrite::uninstall_rules();
+	}
 
 	public function mark_image_as_compressed() {
 		$response = $this->validate_ajax_attachment_request();
